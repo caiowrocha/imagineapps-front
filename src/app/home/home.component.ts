@@ -6,17 +6,12 @@ import { TodoFilterComponent } from './ui/todo-filter.component';
 import { FormBuilder, Validators } from '@angular/forms';
 import { Todo } from '../shared/interfaces/todo.interface';
 import { TodoService } from '../shared/data-access/todo.service';
+import { dateToString } from '../shared/utils/date-formatter';
 import { NgbDate, NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
 @Component({
   standalone: true,
   selector: 'app-home',
-  styles: [
-    `
-      .wrapper {
-        viewheight: 100vh;
-      }
-    `,
-  ],
+  styles: [``],
   template: `
     <div class="container m-5 p-2 rounded mx-auto bg-light shadow">
       <div class="row m-1 p-4">
@@ -70,7 +65,7 @@ import { NgbDate, NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
                 "
                 [formGroup]="todoFormGroup"
                 (close)="todoBeingCreatedOrEdited.set(null)"
-                (save)="todoService.add$.next(todoFormGroup.getRawValue())"
+                (save)="handleSaveTodo()"
               >
               </app-todo-form>
             </ng-template>
@@ -117,7 +112,7 @@ export default class HomeComponent {
       if (!todo) {
         this.todoFormGroup.reset();
       } else {
-        console.log('edit');
+        console.log(this.todoBeingCreatedOrEdited());
       }
     });
   }
@@ -139,5 +134,24 @@ export default class HomeComponent {
         ].some((string) => String(string).includes(filterTerm));
       });
     });
+  }
+
+  handleSaveTodo(): void {
+    const { Deadline, Title, Description } = this.todoFormGroup.getRawValue();
+
+    const deadline = dateToString(Deadline);
+
+    const formValues = {
+      title: Title,
+      description: Description,
+      deadline,
+    };
+
+    this.todoBeingCreatedOrEdited()?.id
+      ? this.todoService.edit$.next({
+          id: this.todoBeingCreatedOrEdited()!.id!,
+          value: formValues,
+        })
+      : this.todoService.add$.next(formValues);
   }
 }
