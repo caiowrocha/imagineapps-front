@@ -33,16 +33,20 @@ export class TodoFilterComponent implements OnInit, OnDestroy {
   constructor() {}
 
   ngOnInit(): void {
-    this.formGroup
-      .get('filter')
-      ?.valueChanges.pipe(takeUntil(this.destroy$))
-      .subscribe((value) => {
-        this.filter.emit(value);
-      });
+    this.listenToFilterCriteriaChanges();
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  listenToFilterCriteriaChanges(): void {
+    this.formGroup
+    .get('filter')
+    ?.valueChanges.pipe(takeUntil(this.destroy$))
+    .subscribe((value) => {
+      this.filter.emit(value);
+    });
   }
 }

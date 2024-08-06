@@ -6,8 +6,7 @@ import { TodoFilterComponent } from './ui/todo-filter.component';
 import { FormBuilder, Validators } from '@angular/forms';
 import { Todo } from '../shared/interfaces/todo.interface';
 import { TodoService } from '../shared/data-access/todo.service';
-import { dateToString } from '../shared/utils/date-formatter';
-import { NgbDate, NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
+import { dateToString, dateToNgb } from '../shared/utils/date-formatter';
 @Component({
   standalone: true,
   selector: 'app-home',
@@ -29,7 +28,7 @@ import { NgbDate, NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
             <div class="col">
               <app-todo-filter
                 [formGroup]="todoFilterFormGroup"
-                (filter)="handleFilterTodos($event)"
+                (filter)="todoService.filter$.next($event)"
               ></app-todo-filter>
             </div>
             <div class="col-auto px-0 mx-0 mr-2">
@@ -47,7 +46,7 @@ import { NgbDate, NgbDateStruct } from '@ng-bootstrap/ng-bootstrap';
           <div class="card">
             <div class="card-body">
               <app-todo-list
-                [todos]="todos()"
+                [todos]="todoService.todos()"
                 (edit)="todoBeingCreatedOrEdited.set($event)"
                 (delete)="todoService.remove$.next($event)"
               >
@@ -85,16 +84,13 @@ export default class HomeComponent {
   @ViewChild(ModalComponent) modalComponent!: ModalComponent;
   todoService = inject(TodoService);
   formBuilder = inject(FormBuilder);
-  todos = signal<Partial<Todo[]>>(this.todoService.todos());
   todoBeingCreatedOrEdited = signal<Partial<Todo> | null>(null);
-
   todoFormGroup = this.formBuilder.nonNullable.group({
-    Deadline: [
-      {
-        year: 0,
-        month: 0,
-        day: 0,
-      },
+    Deadline: [{
+      year: 0,
+      day: 0,
+      month: 0
+    },
       Validators.required,
     ],
     Title: ['', Validators.required],
@@ -112,34 +108,20 @@ export default class HomeComponent {
       if (!todo) {
         this.todoFormGroup.reset();
       } else {
-        console.log(this.todoBeingCreatedOrEdited());
+        const deadline = dateToNgb(todo!.deadline! as string);
+        this.todoFormGroup.patchValue({
+          Deadline: deadline,
+          Description: todo.description,
+          Title: todo.title
+        });
       }
-    });
-  }
-
-  handleFilterTodos(event: string): void {
-    if (!event) {
-      this.todos.set(this.todoService.todos());
-      return;
-    }
-    this.todos.update((todos) => this.todoService.todos());
-
-    const filterTerm = event.toLowerCase();
-
-    this.todos.update((todos) => {
-      return todos.filter((todo) => {
-        return [
-          todo?.description.toLowerCase(),
-          todo?.title.toLowerCase(),
-        ].some((string) => String(string).includes(filterTerm));
-      });
     });
   }
 
   handleSaveTodo(): void {
     const { Deadline, Title, Description } = this.todoFormGroup.getRawValue();
 
-    const deadline = dateToString(Deadline);
+    const deadline = new Date(dateToString(Deadline)).toISOString();
 
     const formValues = {
       title: Title,
@@ -150,7 +132,7 @@ export default class HomeComponent {
     this.todoBeingCreatedOrEdited()?.id
       ? this.todoService.edit$.next({
           id: this.todoBeingCreatedOrEdited()!.id!,
-          value: formValues,
+          data: formValues,
         })
       : this.todoService.add$.next(formValues);
   }
